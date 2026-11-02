@@ -28,6 +28,13 @@ python3 -m http.server 8787 --directory line-liff-invite
 3. 把 LIFF ID（格式像 `1234567890-AbcdEfgh`）填進 `config.js`，重新部署。
 4. 手機上打開 `https://liff.line.me/<LIFF ID>`。建議把這個連結傳到自己的 Keep，之後從 LINE 裡點開，就會在 LINE 內建瀏覽器開啟。
 
+## 從主畫面開啟（iPhone 捷徑）
+
+「捷徑」App 建一個「打開 URL」動作，加到主畫面。網址要填 **`line://app/<LIFF ID>`**：
+
+- `https://liff.line.me/<LIFF ID>`：會叫起 LINE，但 LINE 跳出「無法連線，請確定該連結有效」（2026-11-02 實測）。
+- `line://app/<LIFF ID>`：可以正常開啟（2026-11-02 實測）。這是 LINE 官方已經標為停用的舊格式，哪天失效就只能改從聊天室點連結。
+
 ## 限制
 
 - **收件人每次都要在 LINE 的選人畫面手動勾**。LIFF 拿不到好友清單，也不能預先帶入名單；「我的名單」只是勾人時的對照表，存在這支手機的瀏覽器裡。

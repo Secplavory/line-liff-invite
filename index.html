@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LINE 圖文邀約</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/versions/2.31.2/sdk.js"></script>
+<script src="config.js"></script>
+<style>
+  :root {
+    --green: #06C755;
+    --bg: #f2f3f5;
+    --card: #ffffff;
+    --text: #111111;
+    --muted: #8a8f98;
+    --line: #e3e5e8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", sans-serif;
+    padding: 0 16px calc(96px + env(safe-area-inset-bottom));
+  }
+  header { padding: 20px 0 8px; }
+  header h1 { font-size: 20px; margin: 0; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  section {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 16px;
+    margin: 12px 0;
+  }
+  section h2 { font-size: 15px; margin: 0 0 12px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+  label:first-of-type { margin-top: 0; }
+  input, textarea {
+    width: 100%;
+    font: inherit;
+    color: inherit;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+  }
+  textarea { min-height: 84px; resize: vertical; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; min-width: 0; }
+  .covers { display: flex; gap: 8px; margin-bottom: 8px; }
+  .covers button {
+    flex: 1;
+    aspect-ratio: 20 / 13;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    background-size: cover;
+    background-position: center;
+    padding: 0;
+    cursor: pointer;
+  }
+  .covers button[aria-pressed="true"] { border-color: var(--green); }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* Approximation of how the Flex bubble renders in LINE */
+  .chat { background: #8cabd9; border-radius: 14px; padding: 16px; }
+  .bubble {
+    width: min(300px, 100%);
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0,0,0,.15);
+  }
+  .bubble .hero { width: 100%; aspect-ratio: 20 / 13; object-fit: cover; display: block; background: #ddd; }
+  .bubble .body { padding: 16px 20px 8px; }
+  .bubble .title { font-size: 20px; font-weight: 700; margin: 0 0 10px; word-break: break-word; }
+  .bubble .info { display: flex; gap: 8px; font-size: 13px; margin: 4px 0; }
+  .bubble .info span:first-child { color: #aaaaaa; flex: 0 0 2.5em; }
+  .bubble .info span:last-child { flex: 1; word-break: break-word; }
+  .bubble .desc { font-size: 13px; color: #666; margin: 10px 0 0; white-space: pre-wrap; word-break: break-word; }
+  .bubble .footer { padding: 8px 12px 12px; }
+  .bubble .btn {
+    display: block; text-align: center; background: var(--green); color: #fff;
+    border-radius: 8px; padding: 10px; font-size: 14px; text-decoration: none;
+  }
+
+  .groups { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .chip {
+    border: 1px solid var(--line); background: #fff; border-radius: 999px;
+    padding: 4px 12px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .chip[aria-pressed="true"] { background: var(--green); border-color: var(--green); color: #fff; }
+  .members { list-style: none; margin: 0; padding: 0; }
+  .members li { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); }
+  .members li:first-child { border-top: 0; }
+  .members input { width: 18px; height: 18px; }
+  .members li.done span { color: var(--muted); text-decoration: line-through; }
+  .link { background: none; border: 0; color: #d33; font: inherit; font-size: 13px; padding: 0; cursor: pointer; }
+
+  .bar {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    background: rgba(255,255,255,.96);
+    border-top: 1px solid var(--line);
+  }
+  .bar button {
+    width: 100%; border: 0; border-radius: 12px; padding: 14px;
+    background: var(--green); color: #fff; font: inherit; font-weight: 600; font-size: 16px; cursor: pointer;
+  }
+  .bar button:disabled { background: #b8c2bb; }
+  .status { font-size: 12px; color: var(--muted); text-align: center; margin-top: 6px; min-height: 1.5em; }
+  .secondary {
+    border: 1px solid var(--line); background: #fff; border-radius: 10px;
+    padding: 8px 12px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>圖文邀約</h1>
+  <p>填好內容 → 選好友 → 每個人都在 1 對 1 聊天室收到同一張卡片</p>
+</header>
+
+<section>
+  <h2>邀約內容</h2>
+  <label>封面圖片</label>
+  <div class="covers" id="covers"></div>
+  <input id="image" type="url" inputmode="url" placeholder="或貼上 https 圖片網址（JPEG / PNG）">
+  <div class="hint">圖片要是公開的 https 網址，LINE 才抓得到。</div>
+
+  <label for="title">標題</label>
+  <input id="title" maxlength="40" value="週六一起去爬山！">
+
+  <div class="row">
+    <div>
+      <label for="date">日期時間</label>
+      <input id="date" type="datetime-local">
+    </div>
+  </div>
+
+  <label for="place">地點</label>
+  <input id="place" maxlength="60" value="捷運動物園站 2 號出口">
+
+  <label for="desc">說明</label>
+  <textarea id="desc" maxlength="300">輕鬆路線約 3 小時，結束後一起吃午餐。有興趣的回我一聲 🙌</textarea>
+
+  <div class="row">
+    <div>
+      <label for="btnLabel">按鈕文字（選填）</label>
+      <input id="btnLabel" maxlength="20" value="查看地圖">
+    </div>
+    <div>
+      <label for="btnUrl">按鈕連結</label>
+      <input id="btnUrl" type="url" inputmode="url" placeholder="https://…" value="https://www.google.com/maps/search/?api=1&amp;query=%E6%8D%B7%E9%81%8B%E5%8B%95%E7%89%A9%E5%9C%92%E7%AB%99">
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>預覽</h2>
+  <div class="chat"><div class="bubble" id="preview"></div></div>
+  <div class="hint">實際樣式以 LINE 顯示為準，這裡是近似畫面。</div>
+</section>
+
+<section>
+  <h2>我的名單</h2>
+  <div class="groups" id="groups"></div>
+  <ul class="members" id="members"></ul>
+  <div class="hint" id="groupHint">LINE 的選人畫面不能預先帶入名單，這裡是勾人時的對照表：照著名字搜尋、勾選，勾完一個就在這裡打勾。</div>
+  <details style="margin-top:12px">
+    <summary style="font-size:13px;cursor:pointer">新增／編輯名單</summary>
+    <label for="groupName">名單名稱</label>
+    <input id="groupName" placeholder="例如：登山">
+    <label for="groupMembers">成員（一行一個，填你在 LINE 看到的名字）</label>
+    <textarea id="groupMembers" placeholder="王小明&#10;陳小華"></textarea>
+    <div class="row" style="margin-top:8px">
+      <button class="secondary" id="saveGroup" type="button">儲存名單</button>
+      <button class="secondary" id="deleteGroup" type="button">刪除這份名單</button>
+    </div>
+  </details>
+</section>
+
+<section>
+  <h2>進階</h2>
+  <button class="secondary" id="copyJson" type="button">複製 Flex JSON</button>
+  <div class="hint">可貼到 LINE 官方的 Flex Message Simulator 檢查格式。</div>
+</section>
+
+<div class="bar">
+  <button id="send" type="button" disabled>載入中…</button>
+  <div class="status" id="status"></div>
+</div>
+
+<script>
+const COVERS = [
+  "https://images.unsplash.com/photo-1501555088652-021faa106b9b?w=1040&q=80&fm=jpg&fit=crop",
+  "https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?w=1040&q=80&fm=jpg&fit=crop",
+  "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=1040&q=80&fm=jpg&fit=crop",
+];
+const GROUPS_KEY = "liffInvite.groups";
+const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
+
+const $ = (id) => document.getElementById(id);
+const fields = ["image", "title", "date", "place", "desc", "btnLabel", "btnUrl"];
+
+function defaultDate() {
+  const d = new Date();
+  d.setDate(d.getDate() + ((6 - d.getDay() + 7) % 7 || 7));
+  d.setHours(9, 0, 0, 0);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T09:00`;
+}
+
+function formatDate(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (isNaN(d)) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getMonth() + 1}/${d.getDate()}（${WEEKDAYS[d.getDay()]}）${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function isHttps(url) {
+  try { return new URL(url).protocol === "https:"; } catch { return false; }
+}
+
+function readForm() {
+  const v = Object.fromEntries(fields.map((f) => [f, $(f).value.trim()]));
+  v.when = formatDate(v.date);
+  return v;
+}
+
+function infoRow(label, value) {
+  return {
+    type: "box",
+    layout: "baseline",
+    spacing: "sm",
+    contents: [
+      { type: "text", text: label, color: "#aaaaaa", size: "sm", flex: 1 },
+      { type: "text", text: value, color: "#333333", size: "sm", flex: 5, wrap: true },
+    ],
+  };
+}
+
+function buildFlex(v) {
+  const body = [{ type: "text", text: v.title, weight: "bold", size: "xl", wrap: true }];
+  const info = [];
+  if (v.when) info.push(infoRow("時間", v.when));
+  if (v.place) info.push(infoRow("地點", v.place));
+  if (info.length) body.push({ type: "box", layout: "vertical", spacing: "sm", margin: "lg", contents: info });
+  if (v.desc) body.push({ type: "text", text: v.desc, size: "sm", color: "#666666", wrap: true, margin: "lg" });
+
+  const bubble = {
+    type: "bubble",
+    hero: { type: "image", url: v.image, size: "full", aspectRatio: "20:13", aspectMode: "cover" },
+    body: { type: "box", layout: "vertical", contents: body },
+  };
+  if (v.btnLabel && isHttps(v.btnUrl)) {
+    bubble.footer = {
+      type: "box",
+      layout: "vertical",
+      contents: [{
+        type: "button",
+        style: "primary",
+        color: "#06C755",
+        action: { type: "uri", label: v.btnLabel, uri: v.btnUrl },
+      }],
+    };
+  }
+  return { type: "flex", altText: `邀請：${v.title}`, contents: bubble };
+}
+
+function validate(v) {
+  if (!v.title) return "請填標題";
+  if (!isHttps(v.image)) return "封面圖片需要 https 網址";
+  if (v.btnLabel && !isHttps(v.btnUrl)) return "按鈕連結需要 https 網址，或清空按鈕文字";
+  return "";
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function renderPreview() {
+  const v = readForm();
+  const rows = [["時間", v.when], ["地點", v.place]]
+    .filter(([, value]) => value)
+    .map(([k, value]) => `<div class="info"><span>${k}</span><span>${escapeHtml(value)}</span></div>`)
+    .join("");
+  const footer = v.btnLabel && isHttps(v.btnUrl)
+    ? `<div class="footer"><a class="btn" href="${escapeHtml(v.btnUrl)}" target="_blank" rel="noopener">${escapeHtml(v.btnLabel)}</a></div>`
+    : "";
+  $("preview").innerHTML = `
+    ${isHttps(v.image) ? `<img class="hero" src="${escapeHtml(v.image)}" alt="">` : `<div class="hero"></div>`}
+    <div class="body">
+      <p class="title">${escapeHtml(v.title || "（標題）")}</p>
+      ${rows}
+      ${v.desc ? `<p class="desc">${escapeHtml(v.desc)}</p>` : ""}
+    </div>
+    ${footer}`;
+  document.querySelectorAll("#covers button").forEach((b) => {
+    b.setAttribute("aria-pressed", String(b.dataset.url === v.image));
+  });
+}
+
+function renderCovers() {
+  $("covers").innerHTML = COVERS.map((url) =>
+    `<button type="button" data-url="${url}" style="background-image:url('${url.replace("w=1040", "w=300")}')" aria-label="範例封面"></button>`
+  ).join("");
+  $("covers").addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    $("image").value = b.dataset.url;
+    renderPreview();
+  });
+}
+
+// Groups are a per-device reminder list; the share picker cannot be preselected.
+let groups = {};
+let currentGroup = "";
+let checked = new Set();
+
+function loadGroups() {
+  try { groups = JSON.parse(localStorage.getItem(GROUPS_KEY)) || {}; } catch { groups = {}; }
+}
+
+function saveGroups() {
+  try { localStorage.setItem(GROUPS_KEY, JSON.stringify(groups)); } catch {}
+}
+
+function renderGroups() {
+  const names = Object.keys(groups);
+  $("groups").innerHTML = names.length
+    ? names.map((n) => `<button type="button" class="chip" data-name="${escapeHtml(n)}" aria-pressed="${n === currentGroup}">${escapeHtml(n)}（${groups[n].length}）</button>`).join("")
+    : `<span class="hint">還沒有名單，展開下方「新增／編輯名單」建立一份。</span>`;
+  const members = groups[currentGroup] || [];
+  $("members").innerHTML = members.map((m, i) =>
+    `<li class="${checked.has(i) ? "done" : ""}"><input type="checkbox" data-i="${i}" ${checked.has(i) ? "checked" : ""}><span>${escapeHtml(m)}</span></li>`
+  ).join("");
+}
+
+function initGroups() {
+  loadGroups();
+  currentGroup = Object.keys(groups)[0] || "";
+  renderGroups();
+  $("groups").addEventListener("click", (e) => {
+    const b = e.target.closest(".chip");
+    if (!b) return;
+    currentGroup = b.dataset.name;
+    checked = new Set();
+    $("groupName").value = currentGroup;
+    $("groupMembers").value = groups[currentGroup].join("\n");
+    renderGroups();
+  });
+  $("members").addEventListener("change", (e) => {
+    const i = Number(e.target.dataset.i);
+    e.target.checked ? checked.add(i) : checked.delete(i);
+    renderGroups();
+  });
+  $("saveGroup").addEventListener("click", () => {
+    const name = $("groupName").value.trim();
+    const members = $("groupMembers").value.split("\n").map((s) => s.trim()).filter(Boolean);
+    if (!name || !members.length) return setStatus("名單名稱和成員都要填");
+    groups[name] = members;
+    currentGroup = name;
+    checked = new Set();
+    saveGroups();
+    renderGroups();
+    setStatus(`已儲存名單「${name}」`);
+  });
+  $("deleteGroup").addEventListener("click", () => {
+    const name = $("groupName").value.trim();
+    if (!groups[name] || !confirm(`刪除名單「${name}」？`)) return;
+    delete groups[name];
+    currentGroup = Object.keys(groups)[0] || "";
+    checked = new Set();
+    saveGroups();
+    renderGroups();
+  });
+}
+
+function setStatus(text) { $("status").textContent = text; }
+
+async function copyJson() {
+  const json = JSON.stringify(buildFlex(readForm()).contents, null, 2);
+  try {
+    await navigator.clipboard.writeText(json);
+    setStatus("已複製 Flex JSON");
+  } catch {
+    prompt("複製下面的 JSON：", json);
+  }
+}
+
+let liffReady = false;
+
+async function initLiff() {
+  const send = $("send");
+  if (!window.LIFF_ID) {
+    send.textContent = "預覽模式（尚未設定 LIFF ID）";
+    setStatus("在 config.js 填入 LIFF ID 後，從 LINE 開啟才能發送");
+    return;
+  }
+  try {
+    await liff.init({ liffId: window.LIFF_ID });
+    liffReady = true;
+    send.disabled = false;
+    send.textContent = "選擇好友並發送";
+    if (!liff.isInClient()) setStatus("建議從手機 LINE 開啟；外部瀏覽器需要先登入 LINE");
+  } catch (err) {
+    send.textContent = "LIFF 初始化失敗";
+    setStatus(`${err.code || ""} ${err.message || err}`);
+  }
+}
+
+async function share() {
+  const v = readForm();
+  const error = validate(v);
+  if (error) return setStatus(error);
+  if (!liff.isLoggedIn()) return liff.login({ redirectUri: location.href });
+  if (!liff.isApiAvailable("shareTargetPicker")) {
+    return setStatus("這個環境不能用分享選人（LINE 版本太舊，或後台沒開 shareTargetPicker）");
+  }
+  try {
+    const res = await liff.shareTargetPicker([buildFlex(v)], { isMultiple: true });
+    setStatus(res ? "已送出 🎉" : "已取消，沒有送出");
+  } catch (err) {
+    setStatus(`發送失敗：${err.code || ""} ${err.message || err}`);
+  }
+}
+
+$("image").value = COVERS[0];
+$("date").value = defaultDate();
+renderCovers();
+fields.forEach((f) => $(f).addEventListener("input", renderPreview));
+renderPreview();
+initGroups();
+$("copyJson").addEventListener("click", copyJson);
+$("send").addEventListener("click", () => liffReady && share());
+initLiff();
+</script>
+</body>
+</html>

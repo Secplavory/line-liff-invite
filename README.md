@@ -15,7 +15,7 @@ python3 -m http.server 8787 --directory line-liff-invite
 
 ## 上線步驟
 
-1. **放到 https 網址**：LIFF 的 endpoint 必須是 https。目前部署在 GitHub Pages：`https://nudaohong.github.io/line-liff-invite/`（push 到 main 就會更新）。
+1. **放到 https 網址**：LIFF 的 endpoint 必須是 https。目前部署在 GitHub Pages：`https://secplavory.github.io/line-liff-invite/`（push 到 main 就會更新）。
 2. **LINE Developers Console**（https://developers.line.biz/console/ ，用你的 LINE 帳號登入）
    1. 建立 Provider（名稱隨意，例如自己的名字）。
    2. 在 Provider 底下建立 **LINE Login** channel。
